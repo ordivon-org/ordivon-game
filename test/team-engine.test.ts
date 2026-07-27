@@ -15,7 +15,8 @@ import { FixtureTeamProvider, type TeamDecisionProvider } from "../src/team/prov
 import { TeamStore } from "../src/team/store.ts";
 import { listAvailableActions, materializeAction } from "../src/world.ts";
 
-const TEAM_DIGEST = "8e1581f15bbf15fc6df85ac4669b763ade3d75f83637b1d68a9f2f43d21aed66";
+const TEAM_DIGEST = "a8ef1f491c35720ed02e66f004ccd7f3466f78991dcafecd442ceae66b09ceb7";
+const TEAM_SEAL_DIGEST = "0913c9cacb05af3e1dc1bab3a43e3a3a36efd5277da127c18182d05166939bf4";
 
 function fixture(runId = "run:team-engine"): { directory: string; path: string; game: GameStore } {
   const directory = mkdtempSync(join(tmpdir(), "ordivon-game-team-engine-"));
@@ -124,6 +125,31 @@ test("TeamHost completes 18 atomic rounds with three persistent specialists", as
     assert.equal(proposalCount, 54);
     assert.equal(observationCount, 18);
     host.team.verify();
+  } finally {
+    game.close();
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+
+
+test("Engineer sealing is a distinct verified 22-Round victory path", async () => {
+  const { directory, game } = fixture("run:team-engineer-seal");
+  try {
+    const provider = new CountingTeamProvider({ breachStrategy: "engineer-seal" });
+    const host = new TeamHost(game, provider);
+    const result = await host.run(game.activeRunId, 320);
+    const state = game.loadState();
+    assert.equal(state.mission.status, "victory");
+    assert.equal(state.revision, 22);
+    assert.equal(result.rounds.length, 22);
+    assert.ok(result.rounds.every((round) => round.status === "completed"));
+    assert.equal(state.hazards["maintenance-breach"]?.sealed, true);
+    assert.equal(state.hazards["maintenance-breach"]?.contained, false);
+    assert.equal(state.resources.batteryCharge, 0);
+    assert.equal(sha256(state), TEAM_SEAL_DIGEST);
+    assert.equal(game.verifyReplay().digest, TEAM_SEAL_DIGEST);
+    assert.equal(provider.calls, 66);
   } finally {
     game.close();
     rmSync(directory, { recursive: true, force: true });
