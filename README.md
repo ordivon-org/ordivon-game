@@ -124,7 +124,7 @@ A model may later select or propose actions. It never directly mutates this stat
 
 ## Current status
 
-**M2.1 strategy semantics are under evaluation.** The persistent Engineer now receives an explicit Goal dependency graph, threat horizons, regression annotations, safe power-control semantics, transparent strategic ranks, and one-Operation lookahead. World rules and M2 authority guarantees remain unchanged. See [`docs/M21-DESIGN.md`](docs/M21-DESIGN.md); live Provider evidence is being collected for Issue #20.
+**M2.1 is complete.** The persistent Engineer now receives an explicit Goal dependency graph, threat horizons, regression annotations, safe power-control semantics, transparent strategic ranks, and bounded one-Operation lookahead. Codex-only and Codex → Hermes achieved verified victory without changing World rules or overriding model choices. See [`docs/M21-RECEIPT.md`](docs/M21-RECEIPT.md) and [`docs/M21-EVALUATION.json`](docs/M21-EVALUATION.json).
 
 ## License
 
