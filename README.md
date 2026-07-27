@@ -124,7 +124,7 @@ A model may later select or propose actions. It never directly mutates this stat
 
 ## Current status
 
-**M2 is complete.** The persistent Engineer can be initialized, stepped, run autonomously, inspected, recovered, and switched between Codex and Hermes without transferring provider sessions. See [`docs/M2-RECEIPT.md`](docs/M2-RECEIPT.md) and [`docs/M2-EVALUATION.json`](docs/M2-EVALUATION.json). Real providers preserved all Host guarantees but did not yet achieve victory; strategy quality is tracked in Issue #20.
+**M2.1 strategy semantics are under evaluation.** The persistent Engineer now receives an explicit Goal dependency graph, threat horizons, regression annotations, safe power-control semantics, transparent strategic ranks, and one-Operation lookahead. World rules and M2 authority guarantees remain unchanged. See [`docs/M21-DESIGN.md`](docs/M21-DESIGN.md); live Provider evidence is being collected for Issue #20.
 
 ## License
 
