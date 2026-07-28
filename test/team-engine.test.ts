@@ -62,6 +62,34 @@ class ActionProvider implements TeamDecisionProvider {
   }
 }
 
+class MessageAwareContainmentProvider implements TeamDecisionProvider {
+  readonly providerId = "message-aware-containment-v1";
+  readonly delegate = new FixtureTeamProvider();
+
+  async decide(context: CompiledTeamContext): Promise<TeamProviderDecision> {
+    if (context.actorId !== SECURITY_ID) {
+      const decision = await this.delegate.decide(context);
+      return { ...decision, providerId: this.providerId };
+    }
+    const messageBlock = context.blocks.find((block) => block.kind === "message");
+    const messages = Array.isArray(messageBlock?.payload) ? messageBlock.payload as Array<{ kind?: string; boundedSummary?: string }> : [];
+    const containmentAssigned = messages.some((message) =>
+      message.kind === "task-offer" && message.boundedSummary === "Security: contain the maintenance breach now.");
+    if (containmentAssigned) {
+      const decision = await this.delegate.decide(context);
+      return { ...decision, providerId: this.providerId };
+    }
+    const wait = context.allowedActions.find((candidate) => candidate.actionId === "wait") ?? null;
+    return {
+      providerId: this.providerId,
+      contextId: context.contextId,
+      selectedActionCandidateId: wait?.actionCandidateId ?? null,
+      confidence: wait ? 1 : 0,
+      rationale: wait ? "No delivered containment assignment is visible." : "No admitted action is available.",
+    };
+  }
+}
+
 function driveToHazardChoice(game: GameStore): void {
   const command = (actorId: string, actionId: string, commandId: string): PrimitiveWorldCommand => {
     const state = game.loadState();
@@ -153,6 +181,50 @@ test("Engineer sealing is a distinct verified 22-Round victory path", async () =
   } finally {
     game.close();
     rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("communication reachability changes the deterministic Team outcome", async () => {
+  const execute = async (channel: "local" | "station-radio") => {
+    const runId = `run:team-communication:${channel}`;
+    const { directory, game } = fixture(runId);
+    const host = new TeamHost(game, new MessageAwareContainmentProvider());
+    host.initialize(runId);
+    const message = host.team.sendMessage({
+      senderActorId: ENGINEER_ID,
+      recipientActorIds: [SECURITY_ID],
+      kind: "task-offer",
+      boundedSummary: "Security: contain the maintenance breach now.",
+      channel,
+      ttlTicks: 22,
+    }, runId);
+    const initialStatus = message.status;
+    const result = await host.run(runId, 320);
+    const terminal = game.loadState(runId);
+    const retained = host.team.listMessages(runId).find((entry) => entry.messageId === message.messageId);
+    const output = { directory, game, terminal, result, initialStatus, retained };
+    return output;
+  };
+
+  const local = await execute("local");
+  const radio = await execute("station-radio");
+  try {
+    assert.equal(local.initialStatus, "delivered");
+    assert.equal(local.terminal.mission.status, "victory");
+    assert.equal(local.terminal.hazards["maintenance-breach"]?.contained, true);
+    assert.equal(local.result.rounds.every((round) => round.status === "completed"), true);
+
+    assert.equal(radio.initialStatus, "pending");
+    assert.equal(radio.terminal.mission.status, "failure");
+    assert.equal(radio.terminal.mission.reason, "power_exhausted");
+    assert.equal(radio.terminal.hazards["maintenance-breach"]?.contained, false);
+    assert.equal(radio.retained?.status, "delivered");
+    assert.equal(radio.result.rounds.every((round) => round.status === "completed"), true);
+  } finally {
+    local.game.close();
+    radio.game.close();
+    rmSync(local.directory, { recursive: true, force: true });
+    rmSync(radio.directory, { recursive: true, force: true });
   }
 });
 
